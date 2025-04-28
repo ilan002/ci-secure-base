@@ -1,4 +1,4 @@
-name: Security Scan
+name: Security Scan with Docker Build
 
 on:
   push:
@@ -7,57 +7,76 @@ on:
   pull_request:
 
 jobs:
-  trivy-scan:
-    name: Run Trivy vulnerability scanner
+  build-image:
+    name: Build Docker Image
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install Trivy
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker Image
+      run: |
+        docker build -t myapp:latest .
+
+  trivy-scan:
+    name: Trivy scan on Docker Image
+    runs-on: ubuntu-latest
+    needs: build-image
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker Image
+      run: docker build -t myapp:latest .
+
+    - name: Scan image with Trivy
       uses: aquasecurity/trivy-action@master
       with:
-        scan-type: fs
-        ignore-unfixed: true
+        scan-type: image
+        image-ref: myapp:latest
         format: table
-        output: trivy-report.txt
+        output: trivy-image-report.txt
         severity: CRITICAL,HIGH
 
     - name: Upload Trivy scan result
       uses: actions/upload-artifact@v4
       with:
-        name: trivy-report
-        path: trivy-report.txt
+        name: trivy-image-report
+        path: trivy-image-report.txt
 
   snyk-scan:
-    name: Run Snyk vulnerability scanner
+    name: Snyk scan on Docker Image
     runs-on: ubuntu-latest
+    needs: build-image
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker Image
+      run: docker build -t myapp:latest .
 
     - name: Install Snyk
       run: npm install -g snyk
 
-    - name: Run Snyk to check for vulnerabilities
+    - name: Scan Docker image with Snyk
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      run: snyk test --severity-threshold=high
-
-    - name: Monitor project with Snyk (optional)
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      run: snyk monitor
+      run: snyk container test myapp:latest --severity-threshold=high
 
   gitleaks-scan:
-    name: Run Gitleaks secrets scanner
+    name: Gitleaks scan for secrets
     runs-on: ubuntu-latest
 
     steps:
@@ -74,7 +93,7 @@ jobs:
       run: |
         gitleaks detect --source . --report-format sarif --report-path gitleaks-report.sarif
 
-    - name: Upload Gitleaks Report
+    - name: Upload Gitleaks report
       uses: actions/upload-artifact@v4
       with:
         name: gitleaks-report
