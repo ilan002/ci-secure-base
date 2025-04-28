@@ -68,7 +68,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Run Gitleaks
-      uses: gitleaks/action-gitleaks@v2
+      uses: gitleaks/gitleaks-action@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
