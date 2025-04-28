@@ -1,0 +1,99 @@
+name: Security Scan
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  trivy-scan:
+    name: Run Trivy vulnerability scanner
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Trivy
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: fs
+        ignore-unfixed: true
+        format: table
+        output: trivy-report.txt
+        severity: CRITICAL,HIGH
+
+    - name: Upload Trivy scan result
+      uses: actions/upload-artifact@v4
+      with:
+        name: trivy-report
+        path: trivy-report.txt
+
+name: Security Scan with Snyk
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  snyk-scan:
+    name: Run Snyk vulnerability scanner
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install Snyk
+      run: npm install -g snyk
+
+    - name: Run Snyk to check for vulnerabilities
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      run: snyk test --severity-threshold=high
+
+    - name: Monitor project with Snyk (optional)
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      run: snyk monitor
+
+name: Secrets Scan with Gitleaks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  gitleaks-scan:
+    name: Run Gitleaks secrets scanner
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Gitleaks
+      run: |
+        curl -sSL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64 -o gitleaks
+        chmod +x gitleaks
+        sudo mv gitleaks /usr/local/bin/gitleaks
+
+    - name: Run Gitleaks
+      run: |
+        gitleaks detect --source . --report-format sarif --report-path gitleaks-report.sarif
+
+    - name: Upload Gitleaks Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: gitleaks-report
+        path: gitleaks-report.sarif
