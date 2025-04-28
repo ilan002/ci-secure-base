@@ -30,15 +30,6 @@ jobs:
         name: trivy-report
         path: trivy-report.txt
 
-name: Security Scan with Snyk
-
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-
-jobs:
   snyk-scan:
     name: Run Snyk vulnerability scanner
     runs-on: ubuntu-latest
@@ -65,15 +56,6 @@ jobs:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       run: snyk monitor
 
-name: Secrets Scan with Gitleaks
-
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-
-jobs:
   gitleaks-scan:
     name: Run Gitleaks secrets scanner
     runs-on: ubuntu-latest
